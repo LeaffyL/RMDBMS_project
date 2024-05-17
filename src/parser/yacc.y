@@ -22,7 +22,7 @@ using namespace ast;
 
 // keywords
 %token SHOW TABLES CREATE TABLE DROP DESC INSERT INTO VALUES DELETE FROM ASC ORDER BY
-WHERE UPDATE SET SELECT INT CHAR FLOAT INDEX AND JOIN EXIT HELP TXN_BEGIN TXN_COMMIT TXN_ABORT TXN_ROLLBACK ORDER_BY
+WHERE UPDATE SET SELECT INT CHAR FLOAT INDEX AND JOIN EXIT HELP TXN_BEGIN TXN_COMMIT TXN_ABORT TXN_ROLLBACK ORDER_BY ENABLE_NESTLOOP ENABLE_SORTMERGE
 // non-keywords
 %token LEQ NEQ GEQ T_EOF
 
@@ -30,9 +30,10 @@ WHERE UPDATE SET SELECT INT CHAR FLOAT INDEX AND JOIN EXIT HELP TXN_BEGIN TXN_CO
 %token <sv_str> IDENTIFIER VALUE_STRING
 %token <sv_int> VALUE_INT
 %token <sv_float> VALUE_FLOAT
+%token <sv_bool> VALUE_BOOL
 
 // specify types for non-terminal symbol
-%type <sv_node> stmt dbStmt ddl dml txnStmt
+%type <sv_node> stmt dbStmt ddl dml txnStmt setStmt
 %type <sv_field> field
 %type <sv_fields> fieldList
 %type <sv_type_len> type
@@ -50,6 +51,7 @@ WHERE UPDATE SET SELECT INT CHAR FLOAT INDEX AND JOIN EXIT HELP TXN_BEGIN TXN_CO
 %type <sv_conds> whereClause optWhereClause
 %type <sv_orderby>  order_clause opt_order_clause
 %type <sv_orderby_dir> opt_asc_desc
+%type <sv_setKnobType> set_knob_type
 
 %%
 start:
@@ -80,6 +82,7 @@ stmt:
     |   ddl
     |   dml
     |   txnStmt
+    |   setStmt
     ;
 
 txnStmt:
@@ -105,6 +108,13 @@ dbStmt:
         SHOW TABLES
     {
         $$ = std::make_shared<ShowTables>();
+    }
+    ;
+
+setStmt:
+        SET set_knob_type '=' VALUE_BOOL
+    {
+        $$ = std::make_shared<SetStmt>($2, $4);
     }
     ;
 
@@ -217,6 +227,10 @@ value:
     |   VALUE_STRING
     {
         $$ = std::make_shared<StringLit>($1);
+    }
+    |   VALUE_BOOL
+    {
+        $$ = std::make_shared<BoolLit>($1);
     }
     ;
 
@@ -367,6 +381,11 @@ opt_asc_desc:
     |  DESC      { $$ = OrderBy_DESC;    }
     |       { $$ = OrderBy_DEFAULT; }
     ;    
+
+set_knob_type:
+    ENABLE_NESTLOOP { $$ = EnableNestLoop; }
+    |   ENABLE_SORTMERGE { $$ = EnableSortMerge; }
+    ;
 
 tbName: IDENTIFIER;
 

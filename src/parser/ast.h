@@ -19,7 +19,7 @@ enum JoinType {
 namespace ast {
 
 enum SvType {
-    SV_TYPE_INT, SV_TYPE_FLOAT, SV_TYPE_STRING
+    SV_TYPE_INT, SV_TYPE_FLOAT, SV_TYPE_STRING, SV_TYPE_BOOL
 };
 
 enum SvCompOp {
@@ -30,6 +30,10 @@ enum OrderByDir {
     OrderBy_DEFAULT,
     OrderBy_ASC,
     OrderBy_DESC
+};
+
+enum SetKnobType {
+    EnableNestLoop, EnableSortMerge
 };
 
 // Base class for tree nodes
@@ -133,6 +137,12 @@ struct StringLit : public Value {
     StringLit(std::string val_) : val(std::move(val_)) {}
 };
 
+struct BoolLit : public Value {
+    bool val;
+
+    BoolLit(bool val_) : val(val_) {}
+};
+
 struct Col : public Expr {
     std::string tab_name;
     std::string col_name;
@@ -225,11 +235,21 @@ struct SelectStmt : public TreeNode {
             }
 };
 
+// set enable_nestloop
+struct SetStmt : public TreeNode {
+    SetKnobType set_knob_type_;
+    bool bool_val_;
+
+    SetStmt(SetKnobType &type, bool bool_value) : 
+        set_knob_type_(type), bool_val_(bool_value) { }
+};
+
 // Semantic value
 struct SemValue {
     int sv_int;
     float sv_float;
     std::string sv_str;
+    bool sv_bool;
     OrderByDir sv_orderby_dir;
     std::vector<std::string> sv_strs;
 
@@ -257,6 +277,8 @@ struct SemValue {
     std::vector<std::shared_ptr<BinaryExpr>> sv_conds;
 
     std::shared_ptr<OrderBy> sv_orderby;
+
+    SetKnobType sv_setKnobType;
 };
 
 extern std::shared_ptr<ast::TreeNode> parse_tree;

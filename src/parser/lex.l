@@ -85,6 +85,16 @@ single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
 "ORDER" { return ORDER; }
 "BY" {  return BY;  }
 "ASC" { return ASC; }
+"ENABLE_NESTLOOP" { return ENABLE_NESTLOOP; }
+"ENABLE_SORTMERGE" { return ENABLE_SORTMERGE; }
+"TRUE" { 
+    yylval->sv_bool = true;
+    return VALUE_BOOL; 
+}
+"FALSE" {
+    yylval->sv_bool = false;
+    return VALUE_BOOL;
+}
     /* operators */
 ">=" { return GEQ; }
 "<=" { return LEQ; }
