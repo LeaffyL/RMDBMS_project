@@ -24,16 +24,19 @@ See the Mulan PSL v2 for more details. */
 #include "optimizer/plan.h"
 #include "executor_abstract.h"
 #include "transaction/transaction_manager.h"
+#include "optimizer/planner.h"
 
+class Planner;
 
 class QlManager {
    private:
     SmManager *sm_manager_;
     TransactionManager *txn_mgr_;
+    Planner *planner_;
 
    public:
-    QlManager(SmManager *sm_manager, TransactionManager *txn_mgr) 
-        : sm_manager_(sm_manager),  txn_mgr_(txn_mgr) {}
+    QlManager(SmManager *sm_manager, TransactionManager *txn_mgr, Planner *planner) 
+        : sm_manager_(sm_manager),  txn_mgr_(txn_mgr), planner_(planner) {}
 
     void run_mutli_query(std::shared_ptr<Plan> plan, Context *context);
     void run_cmd_utility(std::shared_ptr<Plan> plan, txn_id_t *txn_id, Context *context);

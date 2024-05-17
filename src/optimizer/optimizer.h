@@ -53,6 +53,9 @@ class Optimizer {
         } else if (auto x = std::dynamic_pointer_cast<ast::TxnRollback>(query->parse)) {
             // rollback;
             return std::make_shared<OtherPlan>(T_Transaction_rollback, std::string());
+        } else if (auto x = std::dynamic_pointer_cast<ast::SetStmt>(query->parse)) {
+            // Set Knob Plan
+            return std::make_shared<SetKnobPlan>(x->set_knob_type_, x->bool_val_);
         } else {
             return planner_->do_planner(query, context);
         }

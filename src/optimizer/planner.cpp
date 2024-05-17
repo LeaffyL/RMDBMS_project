@@ -187,7 +187,20 @@ std::shared_ptr<Plan> Planner::make_one_rel(std::shared_ptr<Query> query)
             right = pop_scan(scantbl, it->rhs_col.tab_name, joined_tables, table_scan_executors);
             std::vector<Condition> join_conds{*it};
             //建立join
-            table_join_executors = std::make_shared<JoinPlan>(T_NestLoop, std::move(left), std::move(right), join_conds);
+            // 判断使用哪种join方式
+            if(enable_nestedloop_join && enable_sortmerge_join) {
+                // 默认nested loop join
+                table_join_executors = std::make_shared<JoinPlan>(T_NestLoop, std::move(left), std::move(right), join_conds);
+            } else if(enable_nestedloop_join) {
+                table_join_executors = std::make_shared<JoinPlan>(T_NestLoop, std::move(left), std::move(right), join_conds);
+            } else if(enable_sortmerge_join) {
+                table_join_executors = std::make_shared<JoinPlan>(T_SortMerge, std::move(left), std::move(right), join_conds);
+            } else {
+                // error
+                throw RMDBError("No join executor selected!");
+            }
+
+            // table_join_executors = std::make_shared<JoinPlan>(T_NestLoop, std::move(left), std::move(right), join_conds);
             it = conds.erase(it);
             break;
         }

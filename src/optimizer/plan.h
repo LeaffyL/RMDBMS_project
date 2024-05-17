@@ -28,6 +28,7 @@ typedef enum PlanTag{
     T_DropTable,
     T_CreateIndex,
     T_DropIndex,
+    T_SetKnob,
     T_Insert,
     T_Update,
     T_Delete,
@@ -39,6 +40,7 @@ typedef enum PlanTag{
     T_SeqScan,
     T_IndexScan,
     T_NestLoop,
+    T_SortMerge,    // sort merge join
     T_Sort,
     T_Projection
 } PlanTag;
@@ -97,7 +99,6 @@ class JoinPlan : public Plan
         std::vector<Condition> conds_;
         // future TODO: 后续可以支持的连接类型
         JoinType type;
-        
 };
 
 class ProjectionPlan : public Plan
@@ -183,6 +184,19 @@ class OtherPlan : public Plan
         }
         ~OtherPlan(){}
         std::string tab_name_;
+};
+
+// Set Knob Plan
+class SetKnobPlan : public Plan
+{
+    public:
+        SetKnobPlan(ast::SetKnobType knob_type, bool bool_value) {
+            Plan::tag = T_SetKnob;
+            set_knob_type_ = knob_type;
+            bool_value_ = bool_value;
+        }
+    ast::SetKnobType set_knob_type_;
+    bool bool_value_;
 };
 
 class plannerInfo{
