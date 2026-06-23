@@ -12,6 +12,7 @@ set(CMAKE_CXX_FLAGS "-Wall -O0 -g -ggdb3")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g")
 
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/local_user_deps.cmake OPTIONAL)
 
 enable_testing()
 add_subdirectory(src)
