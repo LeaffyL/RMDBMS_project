@@ -11,7 +11,9 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include <algorithm>
+#include <cstdint>
 #include <cstring>
+#include <limits>
 #include <vector>
 
 #include "common/common.h"
@@ -20,7 +22,24 @@ See the Mulan PSL v2 for more details. */
 #include "system/sm_meta.h"
 
 inline bool is_numeric_type(ColType type) {
-    return type == TYPE_INT || type == TYPE_FLOAT;
+    return type == TYPE_INT || type == TYPE_BIGINT || type == TYPE_FLOAT;
+}
+
+inline bool is_integral_type(ColType type) {
+    return type == TYPE_INT || type == TYPE_BIGINT;
+}
+
+inline long double value_as_long_double(const Value &value) {
+    switch (value.type) {
+        case TYPE_INT:
+            return static_cast<long double>(value.int_val);
+        case TYPE_BIGINT:
+            return static_cast<long double>(value.bigint_val);
+        case TYPE_FLOAT:
+            return static_cast<long double>(value.float_val);
+        default:
+            throw IncompatibleTypeError("NUMERIC", coltype2str(value.type));
+    }
 }
 
 inline Value cast_value_to_col_type(Value value, const ColMeta &col) {
@@ -30,10 +49,21 @@ inline Value cast_value_to_col_type(Value value, const ColMeta &col) {
     if (!is_numeric_type(value.type) || !is_numeric_type(col.type)) {
         throw IncompatibleTypeError(coltype2str(col.type), coltype2str(value.type));
     }
+    long double numeric = value_as_long_double(value);
     if (col.type == TYPE_FLOAT) {
-        value.set_float(value.type == TYPE_INT ? static_cast<float>(value.int_val) : value.float_val);
+        value.set_float(static_cast<float>(numeric));
+    } else if (col.type == TYPE_INT) {
+        if (numeric < std::numeric_limits<int32_t>::min() || numeric > std::numeric_limits<int32_t>::max()) {
+            throw NumericOverflowError(coltype2str(col.type));
+        }
+        value.set_int(static_cast<int32_t>(numeric));
+    } else if (col.type == TYPE_BIGINT) {
+        if (numeric < std::numeric_limits<int64_t>::min() || numeric > std::numeric_limits<int64_t>::max()) {
+            throw NumericOverflowError(coltype2str(col.type));
+        }
+        value.set_bigint(static_cast<int64_t>(numeric));
     } else {
-        value.set_int(value.type == TYPE_FLOAT ? static_cast<int>(value.float_val) : value.int_val);
+        throw IncompatibleTypeError(coltype2str(col.type), coltype2str(value.type));
     }
     return value;
 }
@@ -51,10 +81,30 @@ inline const ColMeta *find_col_meta(const std::vector<ColMeta> &cols, const TabC
 inline int compare_raw_data(const char *lhs, ColType lhs_type, int lhs_len,
                             const char *rhs, ColType rhs_type, int rhs_len) {
     if (is_numeric_type(lhs_type) && is_numeric_type(rhs_type)) {
-        double lhs_value = lhs_type == TYPE_INT ? static_cast<double>(*reinterpret_cast<const int *>(lhs))
-                                                : static_cast<double>(*reinterpret_cast<const float *>(lhs));
-        double rhs_value = rhs_type == TYPE_INT ? static_cast<double>(*reinterpret_cast<const int *>(rhs))
-                                                : static_cast<double>(*reinterpret_cast<const float *>(rhs));
+        if (is_integral_type(lhs_type) && is_integral_type(rhs_type)) {
+            int64_t lhs_value = lhs_type == TYPE_INT ? static_cast<int64_t>(*reinterpret_cast<const int32_t *>(lhs))
+                                                     : *reinterpret_cast<const int64_t *>(lhs);
+            int64_t rhs_value = rhs_type == TYPE_INT ? static_cast<int64_t>(*reinterpret_cast<const int32_t *>(rhs))
+                                                     : *reinterpret_cast<const int64_t *>(rhs);
+            if (lhs_value < rhs_value) {
+                return -1;
+            }
+            if (lhs_value > rhs_value) {
+                return 1;
+            }
+            return 0;
+        }
+
+        long double lhs_value = lhs_type == TYPE_INT
+                                    ? static_cast<long double>(*reinterpret_cast<const int32_t *>(lhs))
+                                    : (lhs_type == TYPE_BIGINT
+                                           ? static_cast<long double>(*reinterpret_cast<const int64_t *>(lhs))
+                                           : static_cast<long double>(*reinterpret_cast<const float *>(lhs)));
+        long double rhs_value = rhs_type == TYPE_INT
+                                    ? static_cast<long double>(*reinterpret_cast<const int32_t *>(rhs))
+                                    : (rhs_type == TYPE_BIGINT
+                                           ? static_cast<long double>(*reinterpret_cast<const int64_t *>(rhs))
+                                           : static_cast<long double>(*reinterpret_cast<const float *>(rhs)));
         if (lhs_value < rhs_value) {
             return -1;
         }
@@ -94,8 +144,14 @@ inline int compare_raw_data(const char *lhs, ColType lhs_type, int lhs_len,
     }
 
     if (lhs_type == TYPE_INT) {
-        int lhs_value = *reinterpret_cast<const int *>(lhs);
-        int rhs_value = *reinterpret_cast<const int *>(rhs);
+        int32_t lhs_value = *reinterpret_cast<const int32_t *>(lhs);
+        int32_t rhs_value = *reinterpret_cast<const int32_t *>(rhs);
+        return lhs_value < rhs_value ? -1 : (lhs_value > rhs_value ? 1 : 0);
+    }
+
+    if (lhs_type == TYPE_BIGINT) {
+        int64_t lhs_value = *reinterpret_cast<const int64_t *>(lhs);
+        int64_t rhs_value = *reinterpret_cast<const int64_t *>(rhs);
         return lhs_value < rhs_value ? -1 : (lhs_value > rhs_value ? 1 : 0);
     }
 

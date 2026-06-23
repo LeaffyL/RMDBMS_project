@@ -12,7 +12,10 @@
 
 %{
 #include "ast.h"
+#include "errors.h"
 #include "yacc.tab.h"
+#include <cerrno>
+#include <cstdlib>
 #include <iostream>
 
 // automatically update location
@@ -75,6 +78,7 @@ single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
 "SET" { return SET; }
 "SELECT" { return SELECT; }
 "INT" { return INT; }
+"BIGINT" { return BIGINT; }
 "CHAR" { return CHAR; }
 "FLOAT" { return FLOAT; }
 "INDEX" { return INDEX; }
@@ -107,7 +111,13 @@ single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
 }
     /* literals */
 {value_int} {
-    yylval->sv_int = atoi(yytext);
+    errno = 0;
+    char *end = nullptr;
+    long long value = strtoll(yytext, &end, 10);
+    if (errno == ERANGE) {
+        throw RMDBError("Integer literal out of range: " + std::string(yytext));
+    }
+    yylval->sv_int = static_cast<int64_t>(value);
     return VALUE_INT;
 }
 {value_float} {

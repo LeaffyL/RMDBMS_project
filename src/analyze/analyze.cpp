@@ -10,15 +10,52 @@ See the Mulan PSL v2 for more details. */
 
 #include "analyze.h"
 
+#include <limits>
+
 namespace {
 
 bool is_compatible_type(ColType lhs_type, ColType rhs_type) {
     if (lhs_type == rhs_type) {
         return true;
     }
-    bool lhs_numeric = lhs_type == TYPE_INT || lhs_type == TYPE_FLOAT;
-    bool rhs_numeric = rhs_type == TYPE_INT || rhs_type == TYPE_FLOAT;
+    bool lhs_numeric = lhs_type == TYPE_INT || lhs_type == TYPE_BIGINT || lhs_type == TYPE_FLOAT;
+    bool rhs_numeric = rhs_type == TYPE_INT || rhs_type == TYPE_BIGINT || rhs_type == TYPE_FLOAT;
     return lhs_numeric && rhs_numeric;
+}
+
+Value cast_value_to_type(Value value, ColType target_type) {
+    if (value.type == target_type) {
+        return value;
+    }
+    if (!is_compatible_type(value.type, target_type)) {
+        throw IncompatibleTypeError(coltype2str(target_type), coltype2str(value.type));
+    }
+
+    long double numeric = 0;
+    if (value.type == TYPE_INT) {
+        numeric = value.int_val;
+    } else if (value.type == TYPE_BIGINT) {
+        numeric = value.bigint_val;
+    } else {
+        numeric = value.float_val;
+    }
+
+    if (target_type == TYPE_FLOAT) {
+        value.set_float(static_cast<float>(numeric));
+    } else if (target_type == TYPE_INT) {
+        if (numeric < std::numeric_limits<int32_t>::min() || numeric > std::numeric_limits<int32_t>::max()) {
+            throw NumericOverflowError(coltype2str(target_type));
+        }
+        value.set_int(static_cast<int32_t>(numeric));
+    } else if (target_type == TYPE_BIGINT) {
+        if (numeric < std::numeric_limits<int64_t>::min() || numeric > std::numeric_limits<int64_t>::max()) {
+            throw NumericOverflowError(coltype2str(target_type));
+        }
+        value.set_bigint(static_cast<int64_t>(numeric));
+    } else {
+        throw IncompatibleTypeError(coltype2str(target_type), coltype2str(value.type));
+    }
+    return value;
 }
 
 }  // namespace
@@ -171,6 +208,7 @@ void Analyze::check_clause(const std::vector<std::string> &tab_names, std::vecto
         ColType lhs_type = lhs_col->type;
         ColType rhs_type;
         if (cond.is_rhs_val) {
+            cond.rhs_val = cast_value_to_type(cond.rhs_val, lhs_type);
             cond.rhs_val.init_raw(lhs_col->len);
             rhs_type = cond.rhs_val.type;
         } else {
@@ -188,7 +226,7 @@ void Analyze::check_clause(const std::vector<std::string> &tab_names, std::vecto
 Value Analyze::convert_sv_value(const std::shared_ptr<ast::Value> &sv_val) {
     Value val;
     if (auto int_lit = std::dynamic_pointer_cast<ast::IntLit>(sv_val)) {
-        val.set_int(int_lit->val);
+        val.set_bigint(int_lit->val);
     } else if (auto float_lit = std::dynamic_pointer_cast<ast::FloatLit>(sv_val)) {
         val.set_float(float_lit->val);
     } else if (auto str_lit = std::dynamic_pointer_cast<ast::StringLit>(sv_val)) {

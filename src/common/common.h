@@ -11,6 +11,7 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include <cassert>
+#include <cstdint>
 #include <cstring>
 #include <memory>
 #include <string>
@@ -31,16 +32,22 @@ struct TabCol {
 struct Value {
     ColType type;  // type of value
     union {
-        int int_val;      // int value
-        float float_val;  // float value
+        int32_t int_val;       // int value
+        int64_t bigint_val;    // bigint value
+        float float_val;       // float value
     };
     std::string str_val;  // string value
 
     std::shared_ptr<RmRecord> raw;  // raw record buffer
 
-    void set_int(int int_val_) {
+    void set_int(int32_t int_val_) {
         type = TYPE_INT;
         int_val = int_val_;
+    }
+
+    void set_bigint(int64_t bigint_val_) {
+        type = TYPE_BIGINT;
+        bigint_val = bigint_val_;
     }
 
     void set_float(float float_val_) {
@@ -57,8 +64,11 @@ struct Value {
         assert(raw == nullptr);
         raw = std::make_shared<RmRecord>(len);
         if (type == TYPE_INT) {
-            assert(len == sizeof(int));
+            assert(len == static_cast<int>(sizeof(int32_t)));
             *(int *)(raw->data) = int_val;
+        } else if (type == TYPE_BIGINT) {
+            assert(len == static_cast<int>(sizeof(int64_t)));
+            *(int64_t *)(raw->data) = bigint_val;
         } else if (type == TYPE_FLOAT) {
             assert(len == sizeof(float));
             *(float *)(raw->data) = float_val;

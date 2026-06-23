@@ -149,6 +149,12 @@ class IncompatibleTypeError : public RMDBError {
         : RMDBError("Incompatible type error: lhs " + lhs + ", rhs " + rhs) {}
 };
 
+class NumericOverflowError : public RMDBError {
+   public:
+    NumericOverflowError(const std::string &target)
+        : RMDBError("Numeric value out of range for " + target) {}
+};
+
 class AmbiguousColumnError : public RMDBError {
    public:
     AmbiguousColumnError(const std::string &col_name) : RMDBError("Ambiguous column: " + col_name) {}

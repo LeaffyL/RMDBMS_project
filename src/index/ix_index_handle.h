@@ -24,6 +24,11 @@ inline int ix_compare(const char *a, const char *b, ColType type, int col_len) {
             int ib = *(int *)b;
             return (ia < ib) ? -1 : ((ia > ib) ? 1 : 0);
         }
+        case TYPE_BIGINT: {
+            int64_t ia = *(int64_t *)a;
+            int64_t ib = *(int64_t *)b;
+            return (ia < ib) ? -1 : ((ia > ib) ? 1 : 0);
+        }
         case TYPE_FLOAT: {
             float fa = *(float *)a;
             float fb = *(float *)b;
@@ -75,7 +80,15 @@ class IxNodeHandle {
 
     int get_min_size() { return get_max_size() / 2; }
 
-    int key_at(int i) { return *(int *)get_key(i); }
+    int64_t key_at(int i) {
+        if (file_hdr->col_types_.empty()) {
+            return *(int *)get_key(i);
+        }
+        if (file_hdr->col_types_[0] == TYPE_BIGINT) {
+            return *(int64_t *)get_key(i);
+        }
+        return *(int *)get_key(i);
+    }
 
     /* 得到第i个孩子结点的page_no */
     page_id_t value_at(int i) { return get_rid(i)->page_no; }
