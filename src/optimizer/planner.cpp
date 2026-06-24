@@ -308,7 +308,7 @@ std::shared_ptr<Plan> Planner::make_one_rel(std::shared_ptr<Query> query)
 std::shared_ptr<Plan> Planner::generate_sort_plan(std::shared_ptr<Query> query, std::shared_ptr<Plan> plan)
 {
     auto x = std::dynamic_pointer_cast<ast::SelectStmt>(query->parse);
-    if(!x->has_sort) {
+    if(!x->has_sort && !x->has_limit) {
         return plan;
     }
     std::vector<std::string> tables = query->tables;
@@ -318,13 +318,38 @@ std::shared_ptr<Plan> Planner::generate_sort_plan(std::shared_ptr<Query> query, 
         const auto &sel_tab_cols = sm_manager_->db_.get_table(sel_tab_name).cols;
         all_cols.insert(all_cols.end(), sel_tab_cols.begin(), sel_tab_cols.end());
     }
-    TabCol sel_col;
-    for (auto &col : all_cols) {
-        if(col.name.compare(x->order->cols->col_name) == 0 )
-        sel_col = {.tab_name = col.tab_name, .col_name = col.name};
+
+    auto resolve_order_col = [&](const std::shared_ptr<ast::Col> &order_col) {
+        TabCol target{order_col->tab_name, order_col->col_name};
+        if (!target.tab_name.empty()) {
+            return target;
+        }
+        std::string matched_tab;
+        for (const auto &col : all_cols) {
+            if (col.name != target.col_name) {
+                continue;
+            }
+            if (!matched_tab.empty()) {
+                throw AmbiguousColumnError(target.col_name);
+            }
+            matched_tab = col.tab_name;
+        }
+        if (matched_tab.empty()) {
+            throw ColumnNotFoundError(target.col_name);
+        }
+        target.tab_name = matched_tab;
+        return target;
+    };
+
+    std::vector<SortKey> sort_keys;
+    sort_keys.reserve(x->orders.size());
+    for (const auto &order : x->orders) {
+        sort_keys.push_back(SortKey{
+            .col = resolve_order_col(order->cols),
+            .is_desc = order->orderby_dir == ast::OrderBy_DESC,
+        });
     }
-    return std::make_shared<SortPlan>(T_Sort, std::move(plan), sel_col, 
-                                    x->order->orderby_dir == ast::OrderBy_DESC);
+    return std::make_shared<SortPlan>(T_Sort, std::move(plan), std::move(sort_keys), x->limit);
 }
 
 

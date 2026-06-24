@@ -31,6 +31,7 @@ int main() {
         "select count(*) as cnt from tb;",
         "select sum(a) as sum_a from tb;",
         "select max(c) as max_c from tb;",
+        "select a, b from tb order by a desc, b asc limit 10;",
         "select x.a, y.b from x, y where x.a = y.b and c = d;",
         "select x.a, y.b from x join y where x.a = y.b and c = d;",
         "exit;",

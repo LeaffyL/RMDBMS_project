@@ -115,3 +115,8 @@ struct AggregateExpr {
     TabCol col;
     std::string alias;
 };
+
+struct SortKey {
+    TabCol col;
+    bool is_desc;
+};

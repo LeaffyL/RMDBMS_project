@@ -251,18 +251,22 @@ struct SelectStmt : public TreeNode {
     bool has_aggregate;
     
     bool has_sort;
-    std::shared_ptr<OrderBy> order;
+    std::vector<std::shared_ptr<OrderBy>> orders;
+    bool has_limit;
+    int limit;
 
 
     SelectStmt(std::vector<std::shared_ptr<Col>> cols_,
                std::vector<std::shared_ptr<AggFunc>> aggs_,
                std::vector<std::string> tabs_,
                std::vector<std::shared_ptr<BinaryExpr>> conds_,
-               std::shared_ptr<OrderBy> order_) :
+               std::vector<std::shared_ptr<OrderBy>> orders_,
+               int limit_) :
             cols(std::move(cols_)), aggs(std::move(aggs_)), tabs(std::move(tabs_)), conds(std::move(conds_)), 
-            order(std::move(order_)) {
+            orders(std::move(orders_)), limit(limit_) {
                 has_aggregate = !aggs.empty();
-                has_sort = (bool)order;
+                has_sort = !orders.empty();
+                has_limit = limit_ >= 0;
             }
 };
 
@@ -311,6 +315,7 @@ struct SemValue {
     std::vector<std::shared_ptr<AggFunc>> sv_aggs;
 
     std::shared_ptr<OrderBy> sv_orderby;
+    std::vector<std::shared_ptr<OrderBy>> sv_orderbys;
 
     SetKnobType sv_setKnobType;
     AggFuncType sv_agg_type;

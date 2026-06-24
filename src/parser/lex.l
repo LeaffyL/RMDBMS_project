@@ -82,6 +82,7 @@ single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
 "MAX" { return MAX; }
 "MIN" { return MIN; }
 "SUM" { return SUM; }
+"LIMIT" { return LIMIT; }
 "INT" { return INT; }
 "BIGINT" { return BIGINT; }
 "DATETIME" { return DATETIME; }
