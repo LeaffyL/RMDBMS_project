@@ -155,6 +155,12 @@ class NumericOverflowError : public RMDBError {
         : RMDBError("Numeric value out of range for " + target) {}
 };
 
+class InvalidDateTimeError : public RMDBError {
+   public:
+    InvalidDateTimeError(const std::string &value)
+        : RMDBError("Invalid datetime literal: " + value) {}
+};
+
 class AmbiguousColumnError : public RMDBError {
    public:
     AmbiguousColumnError(const std::string &col_name) : RMDBError("Ambiguous column: " + col_name) {}

@@ -46,6 +46,13 @@ inline Value cast_value_to_col_type(Value value, const ColMeta &col) {
     if (value.type == col.type) {
         return value;
     }
+    if (col.type == TYPE_DATETIME) {
+        if (value.type != TYPE_STRING) {
+            throw IncompatibleTypeError(coltype2str(col.type), coltype2str(value.type));
+        }
+        value.set_datetime(parse_datetime_string(value.str_val));
+        return value;
+    }
     if (!is_numeric_type(value.type) || !is_numeric_type(col.type)) {
         throw IncompatibleTypeError(coltype2str(col.type), coltype2str(value.type));
     }
@@ -116,6 +123,12 @@ inline int compare_raw_data(const char *lhs, ColType lhs_type, int lhs_len,
 
     if (lhs_type != rhs_type) {
         throw IncompatibleTypeError(coltype2str(lhs_type), coltype2str(rhs_type));
+    }
+
+    if (lhs_type == TYPE_DATETIME) {
+        int64_t lhs_value = *reinterpret_cast<const int64_t *>(lhs);
+        int64_t rhs_value = *reinterpret_cast<const int64_t *>(rhs);
+        return lhs_value < rhs_value ? -1 : (lhs_value > rhs_value ? 1 : 0);
     }
 
     if (lhs_type == TYPE_STRING) {

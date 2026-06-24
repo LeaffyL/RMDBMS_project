@@ -16,6 +16,7 @@ See the Mulan PSL v2 for more details. */
 #include <memory>
 #include <string>
 #include <vector>
+#include "common/datetime_utils.h"
 #include "defs.h"
 #include "record/rm_defs.h"
 
@@ -34,6 +35,7 @@ struct Value {
     union {
         int32_t int_val;       // int value
         int64_t bigint_val;    // bigint value
+        int64_t datetime_val;  // datetime value
         float float_val;       // float value
     };
     std::string str_val;  // string value
@@ -60,6 +62,11 @@ struct Value {
         str_val = std::move(str_val_);
     }
 
+    void set_datetime(int64_t datetime_val_) {
+        type = TYPE_DATETIME;
+        datetime_val = datetime_val_;
+    }
+
     void init_raw(int len) {
         assert(raw == nullptr);
         raw = std::make_shared<RmRecord>(len);
@@ -78,6 +85,9 @@ struct Value {
             }
             memset(raw->data, 0, len);
             memcpy(raw->data, str_val.c_str(), str_val.size());
+        } else if (type == TYPE_DATETIME) {
+            assert(len == static_cast<int>(sizeof(int64_t)));
+            *(int64_t *)(raw->data) = datetime_val;
         }
     }
 };

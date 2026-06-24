@@ -29,6 +29,11 @@ inline int ix_compare(const char *a, const char *b, ColType type, int col_len) {
             int64_t ib = *(int64_t *)b;
             return (ia < ib) ? -1 : ((ia > ib) ? 1 : 0);
         }
+        case TYPE_DATETIME: {
+            int64_t ia = *(int64_t *)a;
+            int64_t ib = *(int64_t *)b;
+            return (ia < ib) ? -1 : ((ia > ib) ? 1 : 0);
+        }
         case TYPE_FLOAT: {
             float fa = *(float *)a;
             float fb = *(float *)b;
@@ -84,7 +89,7 @@ class IxNodeHandle {
         if (file_hdr->col_types_.empty()) {
             return *(int *)get_key(i);
         }
-        if (file_hdr->col_types_[0] == TYPE_BIGINT) {
+        if (file_hdr->col_types_[0] == TYPE_BIGINT || file_hdr->col_types_[0] == TYPE_DATETIME) {
             return *(int64_t *)get_key(i);
         }
         return *(int *)get_key(i);

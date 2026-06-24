@@ -18,6 +18,10 @@ bool is_compatible_type(ColType lhs_type, ColType rhs_type) {
     if (lhs_type == rhs_type) {
         return true;
     }
+    if ((lhs_type == TYPE_DATETIME && rhs_type == TYPE_STRING) ||
+        (lhs_type == TYPE_STRING && rhs_type == TYPE_DATETIME)) {
+        return true;
+    }
     bool lhs_numeric = lhs_type == TYPE_INT || lhs_type == TYPE_BIGINT || lhs_type == TYPE_FLOAT;
     bool rhs_numeric = rhs_type == TYPE_INT || rhs_type == TYPE_BIGINT || rhs_type == TYPE_FLOAT;
     return lhs_numeric && rhs_numeric;
@@ -25,6 +29,13 @@ bool is_compatible_type(ColType lhs_type, ColType rhs_type) {
 
 Value cast_value_to_type(Value value, ColType target_type) {
     if (value.type == target_type) {
+        return value;
+    }
+    if (target_type == TYPE_DATETIME) {
+        if (value.type != TYPE_STRING) {
+            throw IncompatibleTypeError(coltype2str(target_type), coltype2str(value.type));
+        }
+        value.set_datetime(parse_datetime_string(value.str_val));
         return value;
     }
     if (!is_compatible_type(value.type, target_type)) {
@@ -113,9 +124,7 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse)
 
             auto &tab = sm_manager_->db_.get_table(x->tab_name);
             auto col = tab.get_col(set_clause.lhs.col_name);
-            if (!is_compatible_type(col->type, set_clause.rhs.type)) {
-                throw IncompatibleTypeError(coltype2str(col->type), coltype2str(set_clause.rhs.type));
-            }
+            set_clause.rhs = cast_value_to_type(set_clause.rhs, col->type);
             query->set_clauses.push_back(set_clause);
         }
 
