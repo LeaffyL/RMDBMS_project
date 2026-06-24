@@ -63,6 +63,19 @@ class UpdateExecutor : public AbstractExecutor {
                 auto old_key = build_index_key(index, *old_record);
                 auto new_key = build_index_key(index, new_record);
                 if (memcmp(old_key.data(), new_key.data(), index.col_tot_len) != 0) {
+                    ensure_index_key_unique(ih_it->second.get(), new_key.data(), &rid);
+                }
+            }
+
+            for (const auto &index : tab_.indexes) {
+                auto index_name = sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols);
+                auto ih_it = sm_manager_->ihs_.find(index_name);
+                if (ih_it == sm_manager_->ihs_.end()) {
+                    continue;
+                }
+                auto old_key = build_index_key(index, *old_record);
+                auto new_key = build_index_key(index, new_record);
+                if (memcmp(old_key.data(), new_key.data(), index.col_tot_len) != 0) {
                     ih_it->second->delete_entry(old_key.data(), context_->txn_);
                     ih_it->second->insert_entry(new_key.data(), rid, context_->txn_);
                 }

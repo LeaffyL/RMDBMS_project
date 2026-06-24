@@ -232,3 +232,11 @@ inline std::vector<char> build_index_key(const IndexMeta &index, const RmRecord 
     }
     return key;
 }
+
+inline void ensure_index_key_unique(IxIndexHandle *ih, const char *key, const Rid *self_rid = nullptr) {
+    std::vector<Rid> hits;
+    ih->get_value(key, &hits, nullptr);
+    if (!hits.empty() && (self_rid == nullptr || hits[0] != *self_rid)) {
+        throw RMDBError("Unique index constraint violated");
+    }
+}

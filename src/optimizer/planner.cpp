@@ -22,16 +22,59 @@ See the Mulan PSL v2 for more details. */
 #include "index/ix.h"
 #include "record_printer.h"
 
-// 目前的索引匹配规则为：完全匹配索引字段，且全部为单点查询，不会自动调整where条件的顺序
+namespace {
+
+bool has_eq_cond_for_col(const std::vector<Condition> &conds, const std::string &tab_name,
+                         const std::string &col_name) {
+    return std::any_of(conds.begin(), conds.end(), [&](const Condition &cond) {
+        return cond.is_rhs_val && cond.lhs_col.tab_name == tab_name && cond.lhs_col.col_name == col_name &&
+               cond.op == OP_EQ;
+    });
+}
+
+bool has_range_cond_for_col(const std::vector<Condition> &conds, const std::string &tab_name,
+                            const std::string &col_name) {
+    return std::any_of(conds.begin(), conds.end(), [&](const Condition &cond) {
+        return cond.is_rhs_val && cond.lhs_col.tab_name == tab_name && cond.lhs_col.col_name == col_name &&
+               cond.op != OP_EQ && cond.op != OP_NE;
+    });
+}
+
+int calc_index_prefix_match(const IndexMeta &index, const std::vector<Condition> &conds, const std::string &tab_name) {
+    int prefix_len = 0;
+    bool exact_prefix = true;
+    for (const auto &col : index.cols) {
+        bool has_eq = has_eq_cond_for_col(conds, tab_name, col.name);
+        bool has_range = has_range_cond_for_col(conds, tab_name, col.name);
+        if (exact_prefix && has_eq) {
+            prefix_len++;
+            continue;
+        }
+        if (exact_prefix && has_range) {
+            prefix_len++;
+        }
+        break;
+    }
+    return prefix_len;
+}
+
+}  // namespace
+
 bool Planner::get_index_cols(std::string tab_name, std::vector<Condition> curr_conds, std::vector<std::string>& index_col_names) {
     index_col_names.clear();
-    for(auto& cond: curr_conds) {
-        if(cond.is_rhs_val && cond.op == OP_EQ && cond.lhs_col.tab_name.compare(tab_name) == 0)
-            index_col_names.push_back(cond.lhs_col.col_name);
-    }
     TabMeta& tab = sm_manager_->db_.get_table(tab_name);
-    if(tab.is_index(index_col_names)) return true;
-    return false;
+    int best_prefix = 0;
+    for (const auto &index : tab.indexes) {
+        int prefix_len = calc_index_prefix_match(index, curr_conds, tab_name);
+        if (prefix_len > best_prefix) {
+            best_prefix = prefix_len;
+            index_col_names.clear();
+            for (const auto &col : index.cols) {
+                index_col_names.push_back(col.name);
+            }
+        }
+    }
+    return best_prefix > 0;
 }
 
 /**
