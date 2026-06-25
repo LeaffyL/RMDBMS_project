@@ -70,6 +70,16 @@ class UpdateExecutor : public AbstractExecutor {
                 }
             }
 
+            if (context_ != nullptr && context_->txn_ != nullptr && context_->log_mgr_ != nullptr) {
+                Rid log_rid = rid;
+                UpdateLogRecord log_record(context_->txn_->get_transaction_id(), *old_record, new_record, log_rid,
+                                           tab_name_);
+                log_record.prev_lsn_ = context_->txn_->get_prev_lsn();
+                lsn_t lsn = context_->log_mgr_->add_log_to_buffer(&log_record);
+                context_->txn_->set_prev_lsn(lsn);
+                context_->log_mgr_->flush_log_to_disk();
+            }
+
             for (const auto &index : tab_.indexes) {
                 auto index_name = sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols);
                 auto ih_it = sm_manager_->ihs_.find(index_name);
